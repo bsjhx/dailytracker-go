@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/api/entries", "destination": "/api/entries" },
+    { "source": "/api/entries/(.*)", "destination": "/api/entry" },
+    { "source": "/api/stats/weekly", "destination": "/api/stats" }
+  ]
+}
