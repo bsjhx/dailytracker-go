@@ -3,6 +3,7 @@ package api
 import (
 	"database/sql"
 	"log"
+	"os"
 	"sync"
 
 	_ "modernc.org/sqlite"
@@ -16,7 +17,11 @@ var (
 
 func GetDB() (*sql.DB, error) {
 	once.Do(func() {
-		db, dbErr = sql.Open("sqlite", "./dailytracker.db")
+		dbPath := os.Getenv("DB_PATH")
+		if dbPath == "" {
+			dbPath = "./dailytracker.db"
+		}
+		db, dbErr = sql.Open("sqlite", dbPath)
 		if dbErr != nil {
 			return
 		}

@@ -1,8 +1,40 @@
+# Git
 .git
 .gitignore
+
+# Documentation
 README.md
+*.md
+
+# Environment
 .env
-.env.example
+.env.*
+
+# Docker
 docker-compose.yml
+Dockerfile
+
+# Deployment
 vercel.json
+deploy.sh
+start.sh
+
+# IDE
 .claude
+.vscode
+.idea
+.DS_Store
+
+# Database files (don't copy into image)
+*.db
+*.db-shm
+*.db-wal
+postgres_data
+
+# Build artifacts
+dailytracker
+*.exe
+*.test
+
+# Dependencies (will be downloaded during build)
+vendor/
