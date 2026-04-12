@@ -1,78 +1,147 @@
-# DailyTracker - Go + Vercel
+# DailyTracker
 
-Aplikacja do trackowania produktywności - oceny dla pracy i życia prywatnego (0-5).
+A simple daily productivity tracker to rate your work and personal life (0-5 scale). Track your productivity, view statistics, and monitor your progress over time.
 
-## Stack
-- Backend: Go (serverless functions)
-- Database: Vercel Postgres
-- Frontend: Vanilla JS
-- Deploy: Vercel
+## ✨ Features
 
-## Setup Vercel
+- 📊 Daily scoring for work and personal life (0-5)
+- 📈 Weekly statistics and averages
+- 🗂️ View last 30 entries
+- ✏️ Edit existing entries
+- 🚀 Fast, lightweight, single binary deployment
+- 💾 SQLite database (no server required)
+- 🐳 Docker support
 
-### 1. Zainstaluj Vercel CLI
+## 🛠️ Tech Stack
 
-```bash
-npm i -g vercel
-```
+- **Backend:** Go 1.25+ (pure Go, no CGO)
+- **Database:** SQLite (via modernc.org/sqlite - pure Go implementation)
+- **Frontend:** Vanilla JavaScript
+- **Deployment:** Docker Compose
 
-### 2. Login
+## 🚀 Quick Start
 
-```bash
-vercel login
-```
-
-### 3. Stwórz Postgres database
-
-W dashboardzie Vercel:
-1. Idź do https://vercel.com/dashboard
-2. Storage → Create Database → Postgres
-3. Wybierz region (najlepiej blisko Ciebie)
-4. Skopiuj `POSTGRES_URL` (będzie automatycznie dodany do projektu)
-
-### 4. Deploy
+### Local Development
 
 ```bash
-vercel
+# Clone repository
+git clone git@github.com:bsjhx/dailytracker-go.git
+cd dailytracker-go
+
+# Run directly with Go
+go run main.go
+
+# Or with Docker
+docker compose up -d
+
+# Access app
+open http://localhost:8080
 ```
 
-Przy pierwszym deploymencie:
-- Link to existing project? → No
-- Project name? → dailytracker (lub własna nazwa)
-- Directory? → `./` (enter)
-- Vercel wykryje Go i skonfiguruje automatycznie
+### VPS Deployment
 
-### 5. Podłącz Postgres do projektu
+**First time setup:**
+```bash
+# On VPS
+git clone git@github.com:bsjhx/dailytracker-go.git
+cd dailytracker-go
+./deploy-vps.sh
+```
 
-W Vercel Dashboard:
-- Twój projekt → Settings → Environment Variables
-- Połącz database z projektem (powinno być auto)
+**Deploy new version (after code changes):**
+```bash
+# On VPS
+cd dailytracker-go
+./deploy-vps.sh
+```
 
-### 6. Deploy ponownie
+**Start/Stop existing deployment:**
+```bash
+# Start
+./start.sh
+
+# Stop
+docker compose -f docker-compose.yml -f docker-compose.prod.yml down
+
+# View logs
+docker compose -f docker-compose.yml -f docker-compose.prod.yml logs -f
+```
+
+The app runs on **port 20224** on VPS, **port 8080** locally.
+
+## 📖 Documentation
+
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Comprehensive deployment guide
+- **[TODO.md](TODO.md)** - Project roadmap and tasks
+- **[QUICKSTART.md](QUICKSTART.md)** - Quick reference guide
+
+## 📡 API Endpoints
+
+- `GET /api/entries` - Get last 30 entries
+- `POST /api/entries` - Create new entry
+- `GET /api/entries/:date` - Get entry by date (YYYY-MM-DD)
+- `PUT /api/entries/:date` - Update entry
+- `GET /api/stats/weekly` - Get 7-day statistics
+
+## 📁 Project Structure
+
+```
+dailytracker-go/
+├── api/                    # API handlers
+│   ├── db.go              # Database connection
+│   ├── entries.go         # Entries endpoints
+│   ├── entry.go           # Single entry operations
+│   └── stats.go           # Statistics endpoints
+├── public/                # Frontend
+│   └── index.html         # Single-page app
+├── data/                  # Database storage (created on first run)
+├── docker-compose.yml     # Local Docker config
+├── docker-compose.prod.yml # VPS Docker config
+├── Dockerfile             # Docker build instructions
+├── deploy-vps.sh          # VPS deployment script
+├── start.sh               # Start existing containers (VPS)
+├── main.go                # Application entry point
+└── go.mod                 # Go dependencies
+```
+
+## 🔧 Configuration
+
+### Ports
+
+- **Local:** `8080`
+- **VPS:** `20224` (configurable in `docker-compose.prod.yml`)
+
+### Database
+
+Database is stored as a single SQLite file:
+- **Local:** `./dailytracker.db`
+- **Docker:** `./data/dailytracker.db` (persisted volume)
+
+### Backup
 
 ```bash
-vercel --prod
+# Backup database
+cp ./data/dailytracker.db backup-$(date +%Y%m%d).db
+
+# Restore
+cp backup-20260412.db ./data/dailytracker.db
+docker compose restart
 ```
 
-Gotowe! Aplikacja działa na `https://twoj-projekt.vercel.app`
+## 🤝 Contributing
 
-## Lokalne testowanie
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-Vercel nie ma prostego lokalnego dev dla Go + Postgres, więc najlepiej:
-1. Deploy do Vercel
-2. Testuj na `https://twoj-projekt.vercel.app`
+## 📝 License
 
-Albo ustaw lokalnego Postgresa i zmienne środowiskowe.
+MIT License - feel free to use this project however you'd like!
 
-## API Endpoints
+## 🙏 Acknowledgments
 
-- `GET /api/entries` - ostatnie 30 wpisów
-- `POST /api/entries` - dodaj wpis
-- `GET /api/entries/:date` - wpis dla daty (YYYY-MM-DD)
-- `PUT /api/entries/:date` - edytuj wpis
-- `GET /api/stats/weekly` - statystyki z ostatnich 7 dni
-
-## Frontend
-
-- `public/index.html` - UI aplikacji
-- Automatycznie serwowane przez Vercel
+- Pure Go SQLite driver by [modernc.org/sqlite](https://gitlab.com/cznic/sqlite)
+- Docker for easy deployment
+- Go for being awesome
