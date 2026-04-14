@@ -41,7 +41,7 @@ func Entry(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case "GET":
-		getEntry(w, db, date)
+		getEntry(w, db, date, r)
 	case "PUT":
 		updateEntry(w, r, db, date)
 	default:
@@ -49,14 +49,21 @@ func Entry(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func getEntry(w http.ResponseWriter, db *sql.DB, date string) {
+func getEntry(w http.ResponseWriter, db *sql.DB, date string, r *http.Request) {
+	// Get user ID from context
+	userID, ok := GetUserIDFromContext(r)
+	if !ok {
+		http.Error(w, `{"error":"User not found in context"}`, http.StatusInternalServerError)
+		return
+	}
+
 	var entry DailyEntry
 	var entryDate time.Time
 	err := db.QueryRow(`
 		SELECT id, entry_date, work_score, personal_score, total
 		FROM daily_entries
-		WHERE entry_date = ?
-	`, date).Scan(&entry.ID, &entryDate, &entry.WorkScore, &entry.PersonalScore, &entry.Total)
+		WHERE entry_date = ? AND user_id = ?
+	`, date, userID).Scan(&entry.ID, &entryDate, &entry.WorkScore, &entry.PersonalScore, &entry.Total)
 
 	if err == sql.ErrNoRows {
 		http.Error(w, `{"error":"Entry not found"}`, http.StatusNotFound)
@@ -72,6 +79,13 @@ func getEntry(w http.ResponseWriter, db *sql.DB, date string) {
 }
 
 func updateEntry(w http.ResponseWriter, r *http.Request, db *sql.DB, date string) {
+	// Get user ID from context
+	userID, ok := GetUserIDFromContext(r)
+	if !ok {
+		http.Error(w, `{"error":"User not found in context"}`, http.StatusInternalServerError)
+		return
+	}
+
 	var req UpdateEntryRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"Invalid request body"}`, http.StatusBadRequest)
@@ -92,8 +106,8 @@ func updateEntry(w http.ResponseWriter, r *http.Request, db *sql.DB, date string
 	_, err := db.Exec(`
 		UPDATE daily_entries
 		SET work_score = ?, personal_score = ?, total = ?, updated_at = CURRENT_TIMESTAMP
-		WHERE entry_date = ?
-	`, req.WorkScore, req.PersonalScore, total, date)
+		WHERE entry_date = ? AND user_id = ?
+	`, req.WorkScore, req.PersonalScore, total, date, userID)
 
 	if err != nil {
 		http.Error(w, `{"error":"Failed to update entry"}`, http.StatusInternalServerError)
@@ -106,8 +120,8 @@ func updateEntry(w http.ResponseWriter, r *http.Request, db *sql.DB, date string
 	err = db.QueryRow(`
 		SELECT id, entry_date, work_score, personal_score, total
 		FROM daily_entries
-		WHERE entry_date = ?
-	`, date).Scan(&entry.ID, &entryDate, &entry.WorkScore, &entry.PersonalScore, &entry.Total)
+		WHERE entry_date = ? AND user_id = ?
+	`, date, userID).Scan(&entry.ID, &entryDate, &entry.WorkScore, &entry.PersonalScore, &entry.Total)
 
 	if err == sql.ErrNoRows {
 		http.Error(w, `{"error":"Entry not found"}`, http.StatusNotFound)

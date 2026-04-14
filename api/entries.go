@@ -42,7 +42,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case "GET":
-		getEntries(w, db)
+		getEntries(w, db, r)
 	case "POST":
 		createEntry(w, r, db)
 	default:
@@ -50,13 +50,21 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func getEntries(w http.ResponseWriter, db *sql.DB) {
+func getEntries(w http.ResponseWriter, db *sql.DB, r *http.Request) {
+	// Get user ID from context
+	userID, ok := GetUserIDFromContext(r)
+	if !ok {
+		http.Error(w, `{"error":"User not found in context"}`, http.StatusInternalServerError)
+		return
+	}
+
 	rows, err := db.Query(`
 		SELECT id, entry_date, work_score, personal_score, total
 		FROM daily_entries
+		WHERE user_id = ?
 		ORDER BY entry_date DESC
 		LIMIT 30
-	`)
+	`, userID)
 	if err != nil {
 		log.Printf("Query error: %v", err)
 		http.Error(w, `{"error":"Failed to fetch entries"}`, http.StatusInternalServerError)
@@ -84,6 +92,13 @@ func getEntries(w http.ResponseWriter, db *sql.DB) {
 }
 
 func createEntry(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	// Get user ID from context
+	userID, ok := GetUserIDFromContext(r)
+	if !ok {
+		http.Error(w, `{"error":"User not found in context"}`, http.StatusInternalServerError)
+		return
+	}
+
 	var req CreateEntryRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"Invalid request body"}`, http.StatusBadRequest)
@@ -102,9 +117,9 @@ func createEntry(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	total := workScore + personalScore
 
 	result, err := db.Exec(`
-		INSERT INTO daily_entries (entry_date, work_score, personal_score, total)
-		VALUES (?, ?, ?, ?)
-	`, req.EntryDate, req.WorkScore, req.PersonalScore, total)
+		INSERT INTO daily_entries (entry_date, work_score, personal_score, total, user_id)
+		VALUES (?, ?, ?, ?, ?)
+	`, req.EntryDate, req.WorkScore, req.PersonalScore, total, userID)
 
 	if err != nil {
 		http.Error(w, `{"error":"Failed to create entry"}`, http.StatusInternalServerError)

@@ -33,12 +33,19 @@ func Stats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get user ID from context
+	userID, ok := GetUserIDFromContext(r)
+	if !ok {
+		http.Error(w, `{"error":"User not found in context"}`, http.StatusInternalServerError)
+		return
+	}
+
 	rows, err := db.Query(`
 		SELECT id, entry_date, work_score, personal_score, total
 		FROM daily_entries
-		WHERE entry_date >= date('now', '-7 days')
+		WHERE entry_date >= date('now', '-7 days') AND user_id = ?
 		ORDER BY entry_date DESC
-	`)
+	`, userID)
 	if err != nil {
 		http.Error(w, `{"error":"Failed to fetch stats"}`, http.StatusInternalServerError)
 		return

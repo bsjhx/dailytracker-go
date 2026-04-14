@@ -4,20 +4,24 @@
 
 ### Sprint
 - [x] Update README.md
-- [ ] Migrate to Postgres
-- [ ] Add user authentication
-- [ ] nginx on server
+- [x] Add user authentication
+- [ ] Migrate to Postgres (local = sqlite, prod = Postres)
+- [ ] Change project structure to fit [this standard](https://github.com/golang-standards/project-layout?tab=readme-ov-file)
+- [ ] Add some migration logic based on files
+- [ ] Eager DB (or at least migration)
 
 ### Backlog
-- [ ] Add dark mode toggle
-- [ ] Add weekly/monthly statistics view
-- [ ] Add entry notes/comments field
-- [ ] Add data visualization (charts)
+- [ ] [Technical] Add better architecture
+- [ ] [Statistics] Add weekly/monthly statistics view
+- [ ] [Statistics] Add data visualization (charts)
+- [ ] [Admin] Add admin user panel
+- [ ] [Admin] Admin can add new users
+- [ ] [Admin/User] Add "Request user account" funcionality
+- [ ] [UI] Add dark mode toggle
+- [ ] nginx on server
 - [ ] Add backup automation script
 - [ ] Add data export (CSV/JSON)
-- [ ] Add email notifications
-- [ ] Add mobile app support
-- [ ] Add multi-user support
+- [ ] Add entry notes/comments field
 - [ ] Add tags/categories for entries
 
 ### 🐛 Bugs
