@@ -1,12 +1,25 @@
-package api
+package middleware
 
 import (
 	"context"
+	"dailytracker/internal/models"
 	"net/http"
 )
 
-// SessionAuthMiddleware validates the session and adds user context to the request
-func SessionAuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
+// SessionStore interface for session management
+type SessionStore interface {
+	GetSession(sessionID string) (*models.Session, bool)
+}
+
+var sessionStore SessionStore
+
+// SetSessionStore sets the session store to be used by the middleware
+func SetSessionStore(store SessionStore) {
+	sessionStore = store
+}
+
+// SessionAuth validates the session and adds user context to the request
+func SessionAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Get session cookie
 		cookie, err := r.Cookie("session_id")
@@ -38,7 +51,7 @@ func SessionAuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 // GetUserIDFromContext extracts the user ID from the request context
 func GetUserIDFromContext(r *http.Request) (int, bool) {
-	session, ok := r.Context().Value("session").(*Session)
+	session, ok := r.Context().Value("session").(*models.Session)
 	if !ok {
 		return 0, false
 	}

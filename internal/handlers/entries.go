@@ -1,6 +1,9 @@
-package api
+package handlers
 
 import (
+	"dailytracker/internal/middleware"
+	"dailytracker/internal/models"
+	"dailytracker/internal/repository"
 	"database/sql"
 	"encoding/json"
 	"log"
@@ -8,21 +11,8 @@ import (
 	"time"
 )
 
-type DailyEntry struct {
-	ID            int        `json:"id"`
-	EntryDate     string     `json:"entry_date"`
-	WorkScore     *int       `json:"work_score"`
-	PersonalScore *int       `json:"personal_score"`
-	Total         *int       `json:"total"`
-}
-
-type CreateEntryRequest struct {
-	EntryDate     string `json:"entry_date"`
-	WorkScore     *int   `json:"work_score"`
-	PersonalScore *int   `json:"personal_score"`
-}
-
-func Handler(w http.ResponseWriter, r *http.Request) {
+// ListEntries handles GET /api/entries
+func ListEntries(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
@@ -33,7 +23,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db, err := GetDB()
+	db, err := repository.GetDB()
 	if err != nil {
 		log.Printf("GetDB error: %v", err)
 		http.Error(w, `{"error":"Database connection failed"}`, http.StatusInternalServerError)
@@ -52,7 +42,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 func getEntries(w http.ResponseWriter, db *sql.DB, r *http.Request) {
 	// Get user ID from context
-	userID, ok := GetUserIDFromContext(r)
+	userID, ok := middleware.GetUserIDFromContext(r)
 	if !ok {
 		http.Error(w, `{"error":"User not found in context"}`, http.StatusInternalServerError)
 		return
@@ -72,9 +62,9 @@ func getEntries(w http.ResponseWriter, db *sql.DB, r *http.Request) {
 	}
 	defer rows.Close()
 
-	var entries []DailyEntry
+	var entries []models.DailyEntry
 	for rows.Next() {
-		var entry DailyEntry
+		var entry models.DailyEntry
 		var entryDate time.Time
 		err := rows.Scan(&entry.ID, &entryDate, &entry.WorkScore, &entry.PersonalScore, &entry.Total)
 		if err != nil {
@@ -85,7 +75,7 @@ func getEntries(w http.ResponseWriter, db *sql.DB, r *http.Request) {
 	}
 
 	if entries == nil {
-		entries = []DailyEntry{}
+		entries = []models.DailyEntry{}
 	}
 
 	json.NewEncoder(w).Encode(entries)
@@ -93,13 +83,13 @@ func getEntries(w http.ResponseWriter, db *sql.DB, r *http.Request) {
 
 func createEntry(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	// Get user ID from context
-	userID, ok := GetUserIDFromContext(r)
+	userID, ok := middleware.GetUserIDFromContext(r)
 	if !ok {
 		http.Error(w, `{"error":"User not found in context"}`, http.StatusInternalServerError)
 		return
 	}
 
-	var req CreateEntryRequest
+	var req models.CreateEntryRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"Invalid request body"}`, http.StatusBadRequest)
 		return
@@ -129,7 +119,7 @@ func createEntry(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	id, _ := result.LastInsertId()
 
 	// Fetch the created entry
-	var entry DailyEntry
+	var entry models.DailyEntry
 	var entryDate time.Time
 	err = db.QueryRow(`
 		SELECT id, entry_date, work_score, personal_score, total

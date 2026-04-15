@@ -1,7 +1,9 @@
-package api
+package handlers
 
 import (
 	"crypto/rand"
+	"dailytracker/internal/models"
+	"dailytracker/internal/repository"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
@@ -12,40 +14,19 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// Session represents a user session
-type Session struct {
-	ID        string
-	UserID    int
-	Username  string
-	ExpiresAt time.Time
-}
-
 // SessionStore manages active sessions
 type SessionStore struct {
-	sessions map[string]*Session
+	sessions map[string]*models.Session
 	mu       sync.RWMutex
 }
 
 var sessionStore = &SessionStore{
-	sessions: make(map[string]*Session),
+	sessions: make(map[string]*models.Session),
 }
 
-// LoginRequest represents the login payload
-type LoginRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
-
-// UserResponse represents user information
-type UserResponse struct {
-	ID       int    `json:"id"`
-	Username string `json:"username"`
-}
-
-// CreateUserRequest represents the user creation payload
-type CreateUserRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+// GetSessionStore returns the global session store (for middleware)
+func GetSessionStore() *SessionStore {
+	return sessionStore
 }
 
 // generateSessionID creates a random session ID
@@ -67,7 +48,7 @@ func (s *SessionStore) AddSession(userID int, username string) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	session := &Session{
+	session := &models.Session{
 		ID:        sessionID,
 		UserID:    userID,
 		Username:  username,
@@ -79,7 +60,7 @@ func (s *SessionStore) AddSession(userID int, username string) (string, error) {
 }
 
 // GetSession retrieves a session by ID
-func (s *SessionStore) GetSession(sessionID string) (*Session, bool) {
+func (s *SessionStore) GetSession(sessionID string) (*models.Session, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -117,8 +98,8 @@ func (s *SessionStore) CleanExpiredSessions() {
 	}
 }
 
-// LoginHandler handles user login
-func LoginHandler(w http.ResponseWriter, r *http.Request) {
+// Login handles user login
+func Login(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if r.Method != "POST" {
@@ -126,13 +107,13 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req LoginRequest
+	var req models.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"Invalid request body"}`, http.StatusBadRequest)
 		return
 	}
 
-	db, err := GetDB()
+	db, err := repository.GetDB()
 	if err != nil {
 		http.Error(w, `{"error":"Database connection failed"}`, http.StatusInternalServerError)
 		return
@@ -156,7 +137,6 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"Database error"}`, http.StatusInternalServerError)
 		return
 	}
-
 
 	// Verify password
 	err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(req.Password))
@@ -183,15 +163,15 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	})
 
 	// Return user info
-	response := UserResponse{
+	response := models.UserResponse{
 		ID:       userID,
 		Username: username,
 	}
 	json.NewEncoder(w).Encode(response)
 }
 
-// LogoutHandler handles user logout
-func LogoutHandler(w http.ResponseWriter, r *http.Request) {
+// Logout handles user logout
+func Logout(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if r.Method != "POST" {
@@ -219,8 +199,8 @@ func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`{"message":"Logged out successfully"}`))
 }
 
-// CurrentUserHandler returns the current user's information
-func CurrentUserHandler(w http.ResponseWriter, r *http.Request) {
+// CurrentUser returns the current user's information
+func CurrentUser(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if r.Method != "GET" {
@@ -229,21 +209,21 @@ func CurrentUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get session from context (set by middleware)
-	session, ok := r.Context().Value("session").(*Session)
+	session, ok := r.Context().Value("session").(*models.Session)
 	if !ok {
 		http.Error(w, `{"error":"Not authenticated"}`, http.StatusUnauthorized)
 		return
 	}
 
-	response := UserResponse{
+	response := models.UserResponse{
 		ID:       session.UserID,
 		Username: session.Username,
 	}
 	json.NewEncoder(w).Encode(response)
 }
 
-// CreateUserHandler creates a new user (for manual user creation)
-func CreateUserHandler(w http.ResponseWriter, r *http.Request) {
+// CreateUser creates a new user (for manual user creation)
+func CreateUser(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if r.Method != "POST" {
@@ -251,7 +231,7 @@ func CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req CreateUserRequest
+	var req models.CreateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"Invalid request body"}`, http.StatusBadRequest)
 		return
@@ -270,7 +250,7 @@ func CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db, err := GetDB()
+	db, err := repository.GetDB()
 	if err != nil {
 		http.Error(w, `{"error":"Database connection failed"}`, http.StatusInternalServerError)
 		return
@@ -294,7 +274,7 @@ func CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	userID, _ := result.LastInsertId()
 
-	response := UserResponse{
+	response := models.UserResponse{
 		ID:       int(userID),
 		Username: req.Username,
 	}

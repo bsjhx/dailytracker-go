@@ -4,14 +4,15 @@
 
 ### Sprint
 - [x] Update README.md
-- [x] Add user authentication
-- [ ] Migrate to Postgres (local = sqlite, prod = Postres)
-- [ ] Change project structure to fit [this standard](https://github.com/golang-standards/project-layout?tab=readme-ov-file)
-- [ ] Add some migration logic based on files
-- [ ] Eager DB (or at least migration)
+- [x] [Users] Add user authentication
+- [ ] [Technical] Change project structure to fit [this standard](https://github.com/golang-standards/project-layout?tab=readme-ov-file)
+- [ ] [Technical] Add some migration logic based on files
 
 ### Backlog
-- [ ] [Technical] Add better architecture
+- [ ] [Technical] Eager DB (or at least migration)
+- [ ] [Technical] Migrate to Postgres (local = sqlite, prod = Postres)
+- [ ] [Technical] Add prod/local envs
+- [ ] [Technical] Add better architecture - events and packages entries and statistics
 - [ ] [Statistics] Add weekly/monthly statistics view
 - [ ] [Statistics] Add data visualization (charts)
 - [ ] [Admin] Add admin user panel
@@ -23,6 +24,7 @@
 - [ ] Add data export (CSV/JSON)
 - [ ] Add entry notes/comments field
 - [ ] Add tags/categories for entries
+- [ ] Add badges :D
 
 ### 🐛 Bugs
 

@@ -1,4 +1,4 @@
-package api
+package repository
 
 import (
 	"database/sql"
@@ -10,26 +10,28 @@ import (
 )
 
 var (
-	db     *sql.DB
-	dbErr  error
-	once   sync.Once
+	db    *sql.DB
+	dbErr error
+	once  sync.Once
 )
 
+// GetDB returns the database instance, initializing it if necessary
 func GetDB() (*sql.DB, error) {
 	once.Do(func() {
-		log.Printf("GettingDB")
+		log.Printf("Initializing database connection...")
 		dbPath := os.Getenv("DB_PATH")
 		if dbPath == "" {
 			dbPath = "./dailytracker.db"
 		}
 		db, dbErr = sql.Open("sqlite", dbPath)
 		if dbErr != nil {
-			log.Printf("Error creating DB")
+			log.Printf("Error opening database: %v", dbErr)
 			return
 		}
 
 		dbErr = db.Ping()
 		if dbErr != nil {
+			log.Printf("Error pinging database: %v", dbErr)
 			return
 		}
 
@@ -38,7 +40,7 @@ func GetDB() (*sql.DB, error) {
 		if dbErr != nil {
 			log.Printf("Migration error: %v", dbErr)
 		} else {
-			log.Printf("OK")
+			log.Printf("Database initialized successfully")
 		}
 	})
 
@@ -67,12 +69,12 @@ func runMigrations(db *sql.DB) error {
 	}
 
 	if userCount == 0 {
-		log.Printf("No users found, creating default admin user...")
-		// We'll create user via the create-user script or API
-		// For now, just log that manual user creation is needed
-		log.Printf("IMPORTANT: No users exist. Please create a user manually:")
-		log.Printf("  Option 1: Use ./scripts/create-user.sh username password")
-		log.Printf("  Option 2: Use API: POST /api/users/create (see docs)")
+		log.Printf("⚠️  No users found in database")
+		log.Printf("📝 Create a user using one of these methods:")
+		log.Printf("   1. Script: ./scripts/create-user.sh username password")
+		log.Printf("   2. API:    curl -X POST http://localhost:8080/api/users/create \\")
+		log.Printf("              -H 'Content-Type: application/json' \\")
+		log.Printf("              -d '{\"username\":\"admin\",\"password\":\"yourpassword\"}'")
 	}
 
 	// Create daily_entries table
@@ -103,7 +105,7 @@ func runMigrations(db *sql.DB) error {
 
 	// If user_id doesn't exist, we need to migrate old database
 	if columnExists == 0 {
-		log.Printf("Migrating daily_entries table to add user_id column...")
+		log.Printf("🔄 Migrating daily_entries table to add user_id column...")
 
 		// Ensure at least one user exists for migration
 		var userCountForMigration int
@@ -154,7 +156,7 @@ func runMigrations(db *sql.DB) error {
 			return err
 		}
 
-		log.Printf("Migration complete: added user_id column and assigned existing entries to user_id=1")
+		log.Printf("✅ Migration complete: added user_id column and assigned existing entries to user_id=1")
 	}
 
 	// Create indexes

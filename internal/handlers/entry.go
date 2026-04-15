@@ -1,6 +1,9 @@
-package api
+package handlers
 
 import (
+	"dailytracker/internal/middleware"
+	"dailytracker/internal/models"
+	"dailytracker/internal/repository"
 	"database/sql"
 	"encoding/json"
 	"net/http"
@@ -8,11 +11,7 @@ import (
 	"time"
 )
 
-type UpdateEntryRequest struct {
-	WorkScore     *int `json:"work_score"`
-	PersonalScore *int `json:"personal_score"`
-}
-
+// Entry handles GET /api/entries/:date and PUT /api/entries/:date
 func Entry(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, PUT, OPTIONS")
@@ -33,7 +32,7 @@ func Entry(w http.ResponseWriter, r *http.Request) {
 	}
 	date := parts[len(parts)-1]
 
-	db, err := GetDB()
+	db, err := repository.GetDB()
 	if err != nil {
 		http.Error(w, `{"error":"Database connection failed"}`, http.StatusInternalServerError)
 		return
@@ -51,13 +50,13 @@ func Entry(w http.ResponseWriter, r *http.Request) {
 
 func getEntry(w http.ResponseWriter, db *sql.DB, date string, r *http.Request) {
 	// Get user ID from context
-	userID, ok := GetUserIDFromContext(r)
+	userID, ok := middleware.GetUserIDFromContext(r)
 	if !ok {
 		http.Error(w, `{"error":"User not found in context"}`, http.StatusInternalServerError)
 		return
 	}
 
-	var entry DailyEntry
+	var entry models.DailyEntry
 	var entryDate time.Time
 	err := db.QueryRow(`
 		SELECT id, entry_date, work_score, personal_score, total
@@ -80,13 +79,13 @@ func getEntry(w http.ResponseWriter, db *sql.DB, date string, r *http.Request) {
 
 func updateEntry(w http.ResponseWriter, r *http.Request, db *sql.DB, date string) {
 	// Get user ID from context
-	userID, ok := GetUserIDFromContext(r)
+	userID, ok := middleware.GetUserIDFromContext(r)
 	if !ok {
 		http.Error(w, `{"error":"User not found in context"}`, http.StatusInternalServerError)
 		return
 	}
 
-	var req UpdateEntryRequest
+	var req models.UpdateEntryRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"Invalid request body"}`, http.StatusBadRequest)
 		return
@@ -115,7 +114,7 @@ func updateEntry(w http.ResponseWriter, r *http.Request, db *sql.DB, date string
 	}
 
 	// Fetch the updated entry
-	var entry DailyEntry
+	var entry models.DailyEntry
 	var entryDate time.Time
 	err = db.QueryRow(`
 		SELECT id, entry_date, work_score, personal_score, total
