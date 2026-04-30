@@ -2,12 +2,7 @@
 
 ## 📋 To Do
 
-### Sprint
-- [x] [Technical] Update README.md
-- [x] [Users] Add user authentication
-- [x] [Technical] Change project structure to fit [this standard](https://github.com/golang-standards/project-layout?tab=readme-ov-file)
-- [x] [Technical] Add some migration logic based on files
-- [x] [Technical] Eager DB (or at least migration)
+### Sprint 2: 01.05.2026 - 22.05.2026
 
 ### Backlog
 - [ ] [Technical] Migrate to Postgres (local = sqlite, prod = Postres)
@@ -47,3 +42,10 @@
 - [x] Update documentation
 - [x] Fix database initialization bug
 - [x] Add comprehensive .gitignore
+
+#### Sprint 1: 14.04.2026 - 30.04.2026, PR: #1
+- [x] [Technical] Update README.md
+- [x] [Users] Add user authentication
+- [x] [Technical] Change project structure to fit [this standard](https://github.com/golang-standards/project-layout?tab=readme-ov-file)
+- [x] [Technical] Add some migration logic based on files
+- [x] [Technical] Eager DB (or at least migration)
