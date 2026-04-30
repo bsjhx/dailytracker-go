@@ -1,5 +1,10 @@
 # DailyTracker
 
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/bsjhx/dailytracker-go?style=flat-square)](https://github.com/bsjhx/dailytracker-go/releases)
+[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/bsjhx/dailytracker-go/build.yml?style=flat-square)](https://github.com/bsjhx/dailytracker-go/actions)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/bsjhx/dailytracker-go?style=flat-square)](go.mod)
+[![License](https://img.shields.io/github/license/bsjhx/dailytracker-go?style=flat-square)](LICENSE)
+
 A simple daily productivity tracker to rate your work and personal life (0-5 scale). Track your productivity, view statistics, and monitor your progress over time.
 
 ## ✨ Features
