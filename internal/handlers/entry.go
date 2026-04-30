@@ -1,6 +1,9 @@
-package api
+package handlers
 
 import (
+	"dailytracker/internal/middleware"
+	"dailytracker/internal/models"
+	"dailytracker/internal/repository"
 	"database/sql"
 	"encoding/json"
 	"net/http"
@@ -8,11 +11,7 @@ import (
 	"time"
 )
 
-type UpdateEntryRequest struct {
-	WorkScore     *int `json:"work_score"`
-	PersonalScore *int `json:"personal_score"`
-}
-
+// Entry handles GET /api/entries/:date and PUT /api/entries/:date
 func Entry(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, PUT, OPTIONS")
@@ -33,7 +32,7 @@ func Entry(w http.ResponseWriter, r *http.Request) {
 	}
 	date := parts[len(parts)-1]
 
-	db, err := GetDB()
+	db, err := repository.GetDB()
 	if err != nil {
 		http.Error(w, `{"error":"Database connection failed"}`, http.StatusInternalServerError)
 		return
@@ -41,7 +40,7 @@ func Entry(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case "GET":
-		getEntry(w, db, date)
+		getEntry(w, db, date, r)
 	case "PUT":
 		updateEntry(w, r, db, date)
 	default:
@@ -49,14 +48,21 @@ func Entry(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func getEntry(w http.ResponseWriter, db *sql.DB, date string) {
-	var entry DailyEntry
+func getEntry(w http.ResponseWriter, db *sql.DB, date string, r *http.Request) {
+	// Get user ID from context
+	userID, ok := middleware.GetUserIDFromContext(r)
+	if !ok {
+		http.Error(w, `{"error":"User not found in context"}`, http.StatusInternalServerError)
+		return
+	}
+
+	var entry models.DailyEntry
 	var entryDate time.Time
 	err := db.QueryRow(`
 		SELECT id, entry_date, work_score, personal_score, total
 		FROM daily_entries
-		WHERE entry_date = ?
-	`, date).Scan(&entry.ID, &entryDate, &entry.WorkScore, &entry.PersonalScore, &entry.Total)
+		WHERE entry_date = ? AND user_id = ?
+	`, date, userID).Scan(&entry.ID, &entryDate, &entry.WorkScore, &entry.PersonalScore, &entry.Total)
 
 	if err == sql.ErrNoRows {
 		http.Error(w, `{"error":"Entry not found"}`, http.StatusNotFound)
@@ -72,7 +78,14 @@ func getEntry(w http.ResponseWriter, db *sql.DB, date string) {
 }
 
 func updateEntry(w http.ResponseWriter, r *http.Request, db *sql.DB, date string) {
-	var req UpdateEntryRequest
+	// Get user ID from context
+	userID, ok := middleware.GetUserIDFromContext(r)
+	if !ok {
+		http.Error(w, `{"error":"User not found in context"}`, http.StatusInternalServerError)
+		return
+	}
+
+	var req models.UpdateEntryRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"Invalid request body"}`, http.StatusBadRequest)
 		return
@@ -92,8 +105,8 @@ func updateEntry(w http.ResponseWriter, r *http.Request, db *sql.DB, date string
 	_, err := db.Exec(`
 		UPDATE daily_entries
 		SET work_score = ?, personal_score = ?, total = ?, updated_at = CURRENT_TIMESTAMP
-		WHERE entry_date = ?
-	`, req.WorkScore, req.PersonalScore, total, date)
+		WHERE entry_date = ? AND user_id = ?
+	`, req.WorkScore, req.PersonalScore, total, date, userID)
 
 	if err != nil {
 		http.Error(w, `{"error":"Failed to update entry"}`, http.StatusInternalServerError)
@@ -101,13 +114,13 @@ func updateEntry(w http.ResponseWriter, r *http.Request, db *sql.DB, date string
 	}
 
 	// Fetch the updated entry
-	var entry DailyEntry
+	var entry models.DailyEntry
 	var entryDate time.Time
 	err = db.QueryRow(`
 		SELECT id, entry_date, work_score, personal_score, total
 		FROM daily_entries
-		WHERE entry_date = ?
-	`, date).Scan(&entry.ID, &entryDate, &entry.WorkScore, &entry.PersonalScore, &entry.Total)
+		WHERE entry_date = ? AND user_id = ?
+	`, date, userID).Scan(&entry.ID, &entryDate, &entry.WorkScore, &entry.PersonalScore, &entry.Total)
 
 	if err == sql.ErrNoRows {
 		http.Error(w, `{"error":"Entry not found"}`, http.StatusNotFound)

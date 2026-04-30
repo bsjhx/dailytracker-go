@@ -39,6 +39,7 @@ postgres_data/
 *.swo
 *~
 .DS_Store
+*.iml
 
 # Deployment
 .vercel

@@ -58,13 +58,45 @@
             font-size: 12px;
         }
         .edit-btn:hover { background: #218838; }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            margin: 0;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .username {
+            color: #666;
+            font-size: 14px;
+        }
+        .logout-btn {
+            background: #dc3545;
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+        .logout-btn:hover {
+            background: #c82333;
+        }
         @media (max-width: 768px) {
             .container { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
-    <h1>📊 DailyTracker</h1>
+    <div class="header">
+        <h1>📊 DailyTracker</h1>
+        <div class="user-info">
+            <span class="username" id="username">Loading...</span>
+            <button class="logout-btn" onclick="logout()">Wyloguj</button>
+        </div>
+    </div>
 
     <div class="container">
         <div class="card">
@@ -128,6 +160,43 @@
     <script>
         const API = '/api';
 
+        // Check authentication on page load
+        checkAuth();
+
+        async function checkAuth() {
+            try {
+                const res = await fetch(`${API}/auth/me`, {
+                    credentials: 'same-origin'
+                });
+
+                if (!res.ok) {
+                    // Not authenticated, redirect to login
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                const user = await res.json();
+                document.getElementById('username').textContent = user.username;
+            } catch (err) {
+                console.error('Auth check failed', err);
+                window.location.href = '/login.html';
+            }
+        }
+
+        // Logout function
+        async function logout() {
+            try {
+                await fetch(`${API}/auth/logout`, {
+                    method: 'POST',
+                    credentials: 'same-origin'
+                });
+                window.location.href = '/login.html';
+            } catch (err) {
+                console.error('Logout failed', err);
+                alert('Błąd wylogowania');
+            }
+        }
+
         // Set today's date
         document.getElementById('date').valueAsDate = new Date();
 
@@ -146,6 +215,7 @@
                 const res = await fetch(`${API}/entries`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
                     body: JSON.stringify({
                         entry_date: date,
                         work_score: work ? parseInt(work) : null,
@@ -157,6 +227,8 @@
                     alert('Wpis dodany!');
                     loadEntries();
                     loadWeeklyStats();
+                } else if (res.status === 401) {
+                    window.location.href = '/login.html';
                 } else {
                     alert('Błąd: wpis już istnieje lub problem z serwerem');
                 }
@@ -168,7 +240,17 @@
         // Load entries
         async function loadEntries() {
             try {
-                const res = await fetch(`${API}/entries`);
+                const res = await fetch(`${API}/entries`, {
+                    credentials: 'same-origin'
+                });
+
+                if (!res.ok) {
+                    if (res.status === 401) {
+                        window.location.href = '/login.html';
+                    }
+                    return;
+                }
+
                 const entries = await res.json();
                 const tbody = document.querySelector('#entriesTable tbody');
 
@@ -189,7 +271,17 @@
         // Load weekly stats
         async function loadWeeklyStats() {
             try {
-                const res = await fetch(`${API}/stats/weekly`);
+                const res = await fetch(`${API}/stats/weekly`, {
+                    credentials: 'same-origin'
+                });
+
+                if (!res.ok) {
+                    if (res.status === 401) {
+                        window.location.href = '/login.html';
+                    }
+                    return;
+                }
+
                 const stats = await res.json();
                 document.getElementById('weeklyAvg').textContent = stats.average.toFixed(1);
             } catch (err) {
@@ -208,6 +300,7 @@
                 const res = await fetch(`${API}/entries/${date}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
                     body: JSON.stringify({
                         work_score: work ? parseInt(work) : null,
                         personal_score: personal ? parseInt(personal) : null
@@ -218,6 +311,8 @@
                     alert('Zaktualizowano!');
                     loadEntries();
                     loadWeeklyStats();
+                } else if (res.status === 401) {
+                    window.location.href = '/login.html';
                 } else {
                     alert('Błąd aktualizacji');
                 }
