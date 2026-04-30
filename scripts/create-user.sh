@@ -1,61 +1,48 @@
 #!/bin/bash
 # Helper script to create a new user for DailyTracker
-# Usage: ./create-user.sh username password
+# Usage: ./create-user.sh username password [host]
 
-if [ "$#" -ne 2 ]; then
-    echo "Usage: ./create-user.sh username password"
+if [ "$#" -lt 2 ] || [ "$#" -gt 3 ]; then
+    echo "Usage: ./create-user.sh username password [host]"
+    echo ""
+    echo "Arguments:"
+    echo "  username  - Username for the new user"
+    echo "  password  - Password for the new user"
+    echo "  host      - Optional host (default: localhost:8080)"
+    echo ""
+    echo "Example:"
+    echo "  ./create-user.sh admin mypassword"
+    echo "  ./create-user.sh admin mypassword example.com:8080"
     exit 1
 fi
 
 username=$1
 password=$2
+host=${3:-localhost:8080}
 
-# Generate bcrypt hash using Go
-echo "Generating password hash..."
+echo "Creating user '$username' on $host..."
+echo ""
 
-# Create a temporary Go file
-tmpfile=$(mktemp /tmp/hash-password.XXXXXX.go)
-cat > "$tmpfile" << 'EOF'
-package main
-import (
-    "fmt"
-    "os"
-    "golang.org/x/crypto/bcrypt"
-)
-func main() {
-    if len(os.Args) < 2 {
-        fmt.Fprintf(os.Stderr, "Error: password argument required\n")
-        os.Exit(1)
-    }
-    hash, err := bcrypt.GenerateFromPassword([]byte(os.Args[1]), 10)
-    if err != nil {
-        fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-        os.Exit(1)
-    }
-    fmt.Print(string(hash))
-}
-EOF
+# Call the API endpoint
+response=$(curl -s -w "\n%{http_code}" -X POST "http://$host/api/users/create" \
+  -H "Content-Type: application/json" \
+  -d "{\"username\":\"$username\",\"password\":\"$password\"}")
 
-# Run the Go program with the password as an argument
-hash=$(go run "$tmpfile" "$password" 2>&1)
-exit_code=$?
+# Extract HTTP status code (last line)
+http_code=$(echo "$response" | tail -n1)
+# Extract response body (everything except last line)
+body=$(echo "$response" | sed '$d')
 
-# Clean up
-rm "$tmpfile"
-
-if [ $exit_code -ne 0 ]; then
-    echo "Error generating password hash: $hash"
+if [ "$http_code" -eq 200 ] || [ "$http_code" -eq 201 ]; then
+    echo "✅ User created successfully!"
+    echo ""
+    echo "You can now login with:"
+    echo "  Username: $username"
+    echo "  Password: $password"
+else
+    echo "❌ Error creating user (HTTP $http_code)"
+    echo ""
+    echo "Response:"
+    echo "$body"
     exit 1
 fi
-
-echo ""
-echo "Generated SQL to create user:"
-echo "============================================"
-echo "INSERT INTO users (username, password_hash)"
-echo "VALUES ('$username', '$hash');"
-echo "============================================"
-echo ""
-echo "To apply this, run:"
-echo "  sqlite3 ./dailytracker.db"
-echo ""
-echo "Then paste the INSERT statement above."

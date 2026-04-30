@@ -4,8 +4,12 @@ import (
 	"database/sql"
 	"log"
 	"os"
+	"path/filepath"
 	"sync"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/sqlite3"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "modernc.org/sqlite"
 )
 
@@ -23,6 +27,27 @@ func GetDB() (*sql.DB, error) {
 		if dbPath == "" {
 			dbPath = "./dailytracker.db"
 		}
+
+		// Create database file if it doesn't exist
+		if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+			// Ensure parent directory exists
+			dir := filepath.Dir(dbPath)
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				log.Printf("Error creating database directory: %v", err)
+				dbErr = err
+				return
+			}
+
+			file, err := os.Create(dbPath)
+			if err != nil {
+				log.Printf("Error creating database file: %v", err)
+				dbErr = err
+				return
+			}
+			file.Close()
+			log.Printf("Created database file: %s", dbPath)
+		}
+
 		db, dbErr = sql.Open("sqlite", dbPath)
 		if dbErr != nil {
 			log.Printf("Error opening database: %v", dbErr)
@@ -48,125 +73,37 @@ func GetDB() (*sql.DB, error) {
 }
 
 func runMigrations(db *sql.DB) error {
-	// Create users table
-	_, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS users (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			username TEXT UNIQUE NOT NULL,
-			password_hash TEXT NOT NULL,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-		);
-	`)
+	// Create driver instance for golang-migrate
+	driver, err := sqlite3.WithInstance(db, &sqlite3.Config{})
 	if err != nil {
 		return err
 	}
 
-	// Check if we need to create a default user (for fresh databases)
-	var userCount int
-	err = db.QueryRow(`SELECT COUNT(*) FROM users`).Scan(&userCount)
+	migrationsPath := os.Getenv("MIGRATIONS_PATH")
+	if migrationsPath == "" {
+		migrationsPath = "file://migrations"
+	}
+
+	// Create migrate instance
+	m, err := migrate.NewWithDatabaseInstance(
+		migrationsPath,
+		"sqlite3",
+		driver,
+	)
 	if err != nil {
 		return err
 	}
 
-	if userCount == 0 {
-		log.Printf("⚠️  No users found in database")
-		log.Printf("📝 Create a user using one of these methods:")
-		log.Printf("   1. Script: ./scripts/create-user.sh username password")
-		log.Printf("   2. API:    curl -X POST http://localhost:8080/api/users/create \\")
-		log.Printf("              -H 'Content-Type: application/json' \\")
-		log.Printf("              -d '{\"username\":\"admin\",\"password\":\"yourpassword\"}'")
-	}
-
-	// Create daily_entries table
-	_, err = db.Exec(`
-		CREATE TABLE IF NOT EXISTS daily_entries (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			entry_date DATE NOT NULL,
-			work_score INTEGER CHECK (work_score BETWEEN 0 AND 5),
-			personal_score INTEGER CHECK (personal_score BETWEEN 0 AND 5),
-			total INTEGER,
-			user_id INTEGER REFERENCES users(id),
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-		);
-	`)
-	if err != nil {
+	// Run migrations - this is idempotent, safe to run multiple times
+	err = m.Up()
+	if err != nil && err != migrate.ErrNoChange {
 		return err
 	}
 
-	// Check if user_id column exists (for migrating old databases)
-	var columnExists int
-	err = db.QueryRow(`
-		SELECT COUNT(*) FROM pragma_table_info('daily_entries') WHERE name='user_id'
-	`).Scan(&columnExists)
-	if err != nil {
-		return err
-	}
-
-	// If user_id doesn't exist, we need to migrate old database
-	if columnExists == 0 {
-		log.Printf("🔄 Migrating daily_entries table to add user_id column...")
-
-		// Ensure at least one user exists for migration
-		var userCountForMigration int
-		err = db.QueryRow(`SELECT COUNT(*) FROM users`).Scan(&userCountForMigration)
-		if err != nil {
-			return err
-		}
-
-		if userCountForMigration == 0 {
-			log.Printf("Creating default user for migration...")
-			// Create a migration user - they should change this password
-			_, err = db.Exec(`
-				INSERT INTO users (id, username, password_hash)
-				VALUES (1, 'admin', 'CHANGE_PASSWORD_IMMEDIATELY')
-			`)
-			if err != nil {
-				return err
-			}
-		}
-
-		// Since SQLite doesn't support adding columns with foreign keys directly,
-		// we need to recreate the table
-		_, err = db.Exec(`
-			-- Create new table with user_id
-			CREATE TABLE daily_entries_new (
-				id INTEGER PRIMARY KEY AUTOINCREMENT,
-				entry_date DATE NOT NULL,
-				work_score INTEGER CHECK (work_score BETWEEN 0 AND 5),
-				personal_score INTEGER CHECK (personal_score BETWEEN 0 AND 5),
-				total INTEGER,
-				user_id INTEGER REFERENCES users(id),
-				created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-				updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-			);
-
-			-- Copy existing data (assign to user_id = 1)
-			INSERT INTO daily_entries_new (id, entry_date, work_score, personal_score, total, user_id, created_at, updated_at)
-			SELECT id, entry_date, work_score, personal_score, total, 1, created_at, updated_at
-			FROM daily_entries;
-
-			-- Drop old table
-			DROP TABLE daily_entries;
-
-			-- Rename new table
-			ALTER TABLE daily_entries_new RENAME TO daily_entries;
-		`)
-		if err != nil {
-			return err
-		}
-
-		log.Printf("✅ Migration complete: added user_id column and assigned existing entries to user_id=1")
-	}
-
-	// Create indexes
-	_, err = db.Exec(`
-		CREATE INDEX IF NOT EXISTS idx_entry_date ON daily_entries(entry_date DESC);
-		CREATE INDEX IF NOT EXISTS idx_user_entries ON daily_entries(user_id, entry_date DESC);
-		CREATE UNIQUE INDEX IF NOT EXISTS idx_user_date ON daily_entries(user_id, entry_date);
-	`)
-	if err != nil {
-		return err
+	if err == migrate.ErrNoChange {
+		log.Printf("✅ Database schema is up to date")
+	} else {
+		log.Printf("✅ Migrations applied successfully")
 	}
 
 	return nil
