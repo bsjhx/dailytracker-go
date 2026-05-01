@@ -4,7 +4,7 @@
 *.dll
 *.so
 *.dylib
-dailytracker
+/dailytracker
 
 # Test binary, built with `go test -c`
 *.test
