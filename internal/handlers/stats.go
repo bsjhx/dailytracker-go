@@ -5,6 +5,7 @@ import (
 	"dailytracker/internal/models"
 	"dailytracker/internal/repository"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 )
@@ -39,12 +40,14 @@ func WeeklyStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := db.Query(`
+	query := fmt.Sprintf(`
 		SELECT id, entry_date, work_score, personal_score, total
 		FROM daily_entries
-		WHERE entry_date >= date('now', '-7 days') AND user_id = ?
+		WHERE entry_date >= %s AND user_id = ?
 		ORDER BY entry_date DESC
-	`, userID)
+	`, repository.GetDateSubtractSQL(7))
+
+	rows, err := db.Query(repository.ConvertPlaceholders(query), userID)
 	if err != nil {
 		http.Error(w, `{"error":"Failed to fetch stats"}`, http.StatusInternalServerError)
 		return

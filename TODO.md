@@ -1,18 +1,20 @@
 # dailytracker tasks
 
+Never update this file or any of the files in the `/tasks`.
+
 ## 📋 To Do
 
 ### Sprint 2: 01.05.2026 - 22.05.2026
+- [ ] [DT-1][Technical] Migrate to Postgres (local = sqlite, prod = Postres)
+- [ ] [DT-2][Technical] Add roles (admin/user)
+- [ ] [DT-3][Technical] Add some SQL library to not write raw SQL everywhere
 
 ### Backlog
-- [ ] [Technical] Migrate to Postgres (local = sqlite, prod = Postres)
-- [ ] [Technical] Add prod/local envs
-  - [ ] Add sample data for local env when flag is set and db is empty
+- [ ] [Admin] Add admin user panel
+- [ ] [Admin] Admin can add new users
 - [ ] [Technical] Add better architecture - events and packages entries and statistics
 - [ ] [Statistics] Add weekly/monthly statistics view
 - [ ] [Statistics] Add data visualization (charts)
-- [ ] [Admin] Add admin user panel
-- [ ] [Admin] Admin can add new users
 - [ ] [Admin/User] Add "Request user account" functionality
 - [ ] [UI] Add dark mode toggle
 

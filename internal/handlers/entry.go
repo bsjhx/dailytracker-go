@@ -58,11 +58,11 @@ func getEntry(w http.ResponseWriter, db *sql.DB, date string, r *http.Request) {
 
 	var entry models.DailyEntry
 	var entryDate time.Time
-	err := db.QueryRow(`
+	err := db.QueryRow(repository.ConvertPlaceholders(`
 		SELECT id, entry_date, work_score, personal_score, total
 		FROM daily_entries
 		WHERE entry_date = ? AND user_id = ?
-	`, date, userID).Scan(&entry.ID, &entryDate, &entry.WorkScore, &entry.PersonalScore, &entry.Total)
+	`), date, userID).Scan(&entry.ID, &entryDate, &entry.WorkScore, &entry.PersonalScore, &entry.Total)
 
 	if err == sql.ErrNoRows {
 		http.Error(w, `{"error":"Entry not found"}`, http.StatusNotFound)
@@ -102,11 +102,11 @@ func updateEntry(w http.ResponseWriter, r *http.Request, db *sql.DB, date string
 	}
 	total := workScore + personalScore
 
-	_, err := db.Exec(`
+	_, err := db.Exec(repository.ConvertPlaceholders(`
 		UPDATE daily_entries
 		SET work_score = ?, personal_score = ?, total = ?, updated_at = CURRENT_TIMESTAMP
 		WHERE entry_date = ? AND user_id = ?
-	`, req.WorkScore, req.PersonalScore, total, date, userID)
+	`), req.WorkScore, req.PersonalScore, total, date, userID)
 
 	if err != nil {
 		http.Error(w, `{"error":"Failed to update entry"}`, http.StatusInternalServerError)
@@ -116,11 +116,11 @@ func updateEntry(w http.ResponseWriter, r *http.Request, db *sql.DB, date string
 	// Fetch the updated entry
 	var entry models.DailyEntry
 	var entryDate time.Time
-	err = db.QueryRow(`
+	err = db.QueryRow(repository.ConvertPlaceholders(`
 		SELECT id, entry_date, work_score, personal_score, total
 		FROM daily_entries
 		WHERE entry_date = ? AND user_id = ?
-	`, date, userID).Scan(&entry.ID, &entryDate, &entry.WorkScore, &entry.PersonalScore, &entry.Total)
+	`), date, userID).Scan(&entry.ID, &entryDate, &entry.WorkScore, &entry.PersonalScore, &entry.Total)
 
 	if err == sql.ErrNoRows {
 		http.Error(w, `{"error":"Entry not found"}`, http.StatusNotFound)

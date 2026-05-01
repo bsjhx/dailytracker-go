@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -123,11 +124,11 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	var userID int
 	var username string
 	var passwordHash string
-	err = db.QueryRow(`
+	err = db.QueryRow(repository.ConvertPlaceholders(`
 		SELECT id, username, password_hash
 		FROM users
 		WHERE username = ?
-	`, req.Username).Scan(&userID, &username, &passwordHash)
+	`), req.Username).Scan(&userID, &username, &passwordHash)
 
 	if err == sql.ErrNoRows {
 		http.Error(w, `{"error":"Invalid username or password"}`, http.StatusUnauthorized)
@@ -257,17 +258,18 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Insert user
-	result, err := db.Exec(`
+	log.Println("Insertign user:", string(passwordHash))
+	result, err := db.Exec(repository.ConvertPlaceholders(`
 		INSERT INTO users (username, password_hash)
 		VALUES (?, ?)
-	`, req.Username, string(passwordHash))
+	`), req.Username, string(passwordHash))
 
 	if err != nil {
-		// Check for unique constraint violation
 		if err.Error() == "UNIQUE constraint failed: users.username" {
 			http.Error(w, `{"error":"Username already exists"}`, http.StatusConflict)
 			return
 		}
+		log.Println("Error inserting user:", err)
 		http.Error(w, `{"error":"Failed to create user"}`, http.StatusInternalServerError)
 		return
 	}

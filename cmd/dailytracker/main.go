@@ -14,22 +14,25 @@ import (
 )
 
 func main() {
-	log.Printf("🎯 DailyTracker v%s", version.Version)
-
-	// Load .env file if it exists
 	if err := godotenv.Load(); err != nil {
 		log.Printf("No .env file found or error loading it: %v", err)
 	}
+
+	env := os.Getenv("ENV")
+	if env == "" {
+		env = "dev"
+	}
+	log.Printf("DailyTracker v%s (env: %s)", version.Version, env)
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 
-	// Initialize database (runs migrations)
 	_, err := repository.GetDB()
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
+		return
 	}
 
 	// Initialize session store for middleware

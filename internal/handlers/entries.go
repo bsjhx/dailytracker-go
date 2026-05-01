@@ -48,13 +48,13 @@ func getEntries(w http.ResponseWriter, db *sql.DB, r *http.Request) {
 		return
 	}
 
-	rows, err := db.Query(`
+	rows, err := db.Query(repository.ConvertPlaceholders(`
 		SELECT id, entry_date, work_score, personal_score, total
 		FROM daily_entries
 		WHERE user_id = ?
 		ORDER BY entry_date DESC
 		LIMIT 30
-	`, userID)
+	`), userID)
 	if err != nil {
 		log.Printf("Query error: %v", err)
 		http.Error(w, `{"error":"Failed to fetch entries"}`, http.StatusInternalServerError)
@@ -106,10 +106,10 @@ func createEntry(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	}
 	total := workScore + personalScore
 
-	result, err := db.Exec(`
+	result, err := db.Exec(repository.ConvertPlaceholders(`
 		INSERT INTO daily_entries (entry_date, work_score, personal_score, total, user_id)
 		VALUES (?, ?, ?, ?, ?)
-	`, req.EntryDate, req.WorkScore, req.PersonalScore, total, userID)
+	`), req.EntryDate, req.WorkScore, req.PersonalScore, total, userID)
 
 	if err != nil {
 		http.Error(w, `{"error":"Failed to create entry"}`, http.StatusInternalServerError)
@@ -121,11 +121,11 @@ func createEntry(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	// Fetch the created entry
 	var entry models.DailyEntry
 	var entryDate time.Time
-	err = db.QueryRow(`
+	err = db.QueryRow(repository.ConvertPlaceholders(`
 		SELECT id, entry_date, work_score, personal_score, total
 		FROM daily_entries
 		WHERE id = ?
-	`, id).Scan(&entry.ID, &entryDate, &entry.WorkScore, &entry.PersonalScore, &entry.Total)
+	`), id).Scan(&entry.ID, &entryDate, &entry.WorkScore, &entry.PersonalScore, &entry.Total)
 
 	if err != nil {
 		http.Error(w, `{"error":"Failed to fetch created entry"}`, http.StatusInternalServerError)
