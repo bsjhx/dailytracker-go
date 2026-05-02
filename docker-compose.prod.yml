@@ -1,8 +1,0 @@
-version: '3.8'
-
-services:
-  app:
-    ports:
-      - "20224:20224"
-    environment:
-      PORT: 20224

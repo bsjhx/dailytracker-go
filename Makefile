@@ -1,18 +1,20 @@
-.PHONY: help dev prod start stop restart deploy logs clean build test create-user db-only
+.PHONY: help dev prod start stop restart logs clean build test create-user db-only start-prod stop-prod
 
 # Default target
 help:
 	@echo "📋 DailyTracker - Available Commands"
 	@echo ""
 	@echo "Development:"
-	@echo "  make dev              - Start in development mode (port 8080)"
+	@echo "  make dev-docker       - Start in development mode (port 8080) - using docker"
+	@echo "  make dev-bare         - Start in development mode (port 8080) - using go run"
 	@echo "  make db-only          - Start only PostgreSQL database"
 	@echo "  make build            - Build the application"
 	@echo "  make test             - Run tests"
 	@echo ""
 	@echo "Production:"
-	@echo "  make prod             - Start in production mode (port 20224)"
-	@echo "  make deploy           - Full deployment (pull, build, start) - run on VPS"
+	@echo "  make start-prod       - Start production (git pull, build, run on VPS)"
+	@echo "  make stop-prod        - Stop production container"
+	@echo "  make logs-prod        - Show production logs"
 	@echo ""
 	@echo "Docker Management:"
 	@echo "  make stop             - Stop all containers"
@@ -27,11 +29,15 @@ help:
 	@echo "    - Example: make create-user USER=admin PASS=secret HOST=example.com:20224"
 
 # Development mode (port 8080)
-dev:
+dev-docker:
 	@echo "🚀 Starting DailyTracker in development mode..."
 	docker compose up -d
 	@echo "✅ DailyTracker started on http://localhost:8080"
 	@echo "📋 View logs: make logs"
+
+dev-bare:
+	@echo "🚀 Starting DailyTracker in development mode (bare)..."
+	go run cmd/dailytracker/main.go
 
 # Start only PostgreSQL
 db-only:
@@ -39,47 +45,44 @@ db-only:
 	docker compose up postgres -d
 	@echo "✅ PostgreSQL started on port 5432"
 
-# Production mode (port 20224)
-prod:
-	@echo "🚀 Starting DailyTracker in production mode..."
-	docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-	@echo "✅ DailyTracker started on port 20224"
-	@echo "📋 View logs: make logs-prod"
-	@echo "🛑 Stop: make stop-prod"
-
-# Start production (alias)
-start: prod
-
 # Stop development containers
-stop:
+down:
 	@echo "🛑 Stopping development containers..."
 	docker compose down
 
-# Stop production containers
+# Stop production container
 stop-prod:
-	@echo "🛑 Stopping production containers..."
-	docker compose -f docker-compose.yml -f docker-compose.prod.yml down
+	@echo "🛑 Stopping production container..."
+	@docker stop dailytracker-app 2>/dev/null || true
+	@docker rm dailytracker-app 2>/dev/null || true
+	@echo "✅ Production container stopped"
 
 # Restart development
 restart: stop dev
 
-# Restart production
-restart-prod: stop-prod prod
-
-# Full deployment (pull, build, start)
-deploy:
-	@echo "🚀 Deploying DailyTracker..."
-	@echo "📥 Pulling latest changes from git..."
+# Start production (git pull, build, restart with external Postgres)
+start-prod:
+	@echo "🚀 Starting Production (3 steps)..."
+	@echo ""
+	@echo "📥 Step 1/3: Pulling latest changes..."
 	git pull origin main
-	@echo "🛑 Stopping old container..."
-	docker compose -f docker-compose.yml -f docker-compose.prod.yml down
-	@echo "🔨 Building new image..."
-	docker compose -f docker-compose.yml -f docker-compose.prod.yml build --no-cache
-	@echo "✅ Starting new container..."
-	docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-	@echo "📋 Container started! Showing logs (Ctrl+C to exit)..."
-	@sleep 2
-	docker compose -f docker-compose.yml -f docker-compose.prod.yml logs -f
+	@echo ""
+	@echo "🔨 Step 2/3: Building Docker image..."
+	docker build -t dailytracker:latest .
+	@echo ""
+	@echo "🔄 Step 3/3: Starting container..."
+	@docker stop dailytracker-app 2>/dev/null || true
+	@docker rm dailytracker-app 2>/dev/null || true
+	@docker run -d \
+		--name dailytracker-app \
+		--restart unless-stopped \
+		--env-file .env \
+		-p 20224:20224 \
+		dailytracker:latest
+	@echo ""
+	@echo "✅ Production started!"
+	@echo "📋 View logs: docker logs -f dailytracker-app"
+	@echo "📊 Status: docker ps --filter name=dailytracker-app"
 
 # Show logs (development)
 logs:
@@ -87,7 +90,7 @@ logs:
 
 # Show logs (production)
 logs-prod:
-	docker compose -f docker-compose.yml -f docker-compose.prod.yml logs -f
+	@docker logs -f dailytracker-app
 
 # Clean up containers and volumes
 clean:
