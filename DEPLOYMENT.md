@@ -3,8 +3,8 @@
 Daily productivity tracker - rate your work and personal life (0-5).
 
 ## Stack
-- **Backend:** Go with pure Go SQLite (no CGO required)
-- **Database:** SQLite (single file, no server needed)
+- **Backend:** Go
+- **Database:** PostgreSQL
 - **Frontend:** Vanilla JavaScript
 - **Deployment:** Docker Compose
 
@@ -12,29 +12,43 @@ Daily productivity tracker - rate your work and personal life (0-5).
 
 ## Local Development
 
-### Quick Start
+### Quick Start with Docker
 
 ```bash
 # 1. Clone repository
 git clone git@github.com:bsjhx/dailytracker-go.git
 cd dailytracker-go
 
-# 2. Run with Docker
-docker-compose up -d
+# 2. Copy environment file
+cp .env.example .env
 
-# 3. Access app
+# 3. Run with Docker (starts PostgreSQL + app)
+docker-compose up
+
+# 4. Access app
 open http://localhost:8080
 ```
 
 ### Without Docker
 
 ```bash
-# 1. Install Go 1.25+
-# 2. Run
-go run main.go
+# 1. Install PostgreSQL 16+
+# 2. Create database
+psql -U postgres
+CREATE DATABASE dailytracker;
+CREATE USER dailytracker WITH PASSWORD 'your_password';
+GRANT ALL PRIVILEGES ON DATABASE dailytracker TO dailytracker;
+
+# 3. Set environment variables
+export DB_URL=localhost:5432
+export DB_USER=dailytracker
+export DB_PASSWORD=your_password
+export DB_NAME=dailytracker
+
+# 4. Run application
+go run ./cmd/dailytracker
 
 # App runs on http://localhost:8080
-# Database created at ./dailytracker.db
 ```
 
 ---
@@ -63,7 +77,11 @@ sudo usermod -aG docker $USER
 git clone git@github.com:bsjhx/dailytracker-go.git
 cd dailytracker-go
 
-# 4. Deploy
+# 4. Configure environment
+cp .env.example .env
+nano .env  # Set DB_PASSWORD and other values
+
+# 5. Deploy
 ./deploy-vps.sh
 ```
 
@@ -75,7 +93,7 @@ The `deploy-vps.sh` script handles:
 1. ✅ Pull latest code from git
 2. ✅ Stop and remove old containers
 3. ✅ Build new Docker image
-4. ✅ Start new container in background
+4. ✅ Start new containers in background
 
 **Usage:**
 ```bash
@@ -92,13 +110,13 @@ If you prefer manual control:
 git pull origin main
 
 # Stop old containers
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml down
+docker-compose down
 
-# Build and start
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# Build and start (includes PostgreSQL)
+docker-compose up -d --build
 
 # Check logs
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml logs -f
+docker-compose logs -f
 ```
 
 ---
@@ -118,21 +136,43 @@ environment:
   PORT: YOUR_PORT
 ```
 
+### Environment Variables
+
+Required for all environments:
+```bash
+DB_URL=localhost:5432       # PostgreSQL host:port
+DB_USER=dailytracker        # Database user
+DB_PASSWORD=your_password   # Database password
+DB_NAME=dailytracker        # Database name
+PORT=8080                   # App port (optional, default: 8080)
+```
+
 ### Database
 
-Database is stored in `./data/dailytracker.db` (persisted via Docker volume).
+PostgreSQL database with persistent storage via Docker volume.
 
 **Backup:**
 ```bash
-# Copy database file
-cp ./data/dailytracker.db backup-$(date +%Y%m%d).db
+# Create SQL dump
+docker exec dailytracker-postgres pg_dump -U dailytracker dailytracker > backup-$(date +%Y%m%d).sql
+
+# Or backup the entire data directory
+docker run --rm --volumes-from dailytracker-postgres -v $(pwd):/backup alpine tar czf /backup/postgres-backup-$(date +%Y%m%d).tar.gz /var/lib/postgresql/data
 ```
 
 **Restore:**
 ```bash
-# Replace database file
-cp backup-20260411.db ./data/dailytracker.db
-docker-compose restart
+# From SQL dump
+docker exec -i dailytracker-postgres psql -U dailytracker dailytracker < backup-20260411.sql
+
+# Or restore data directory
+docker-compose down
+docker volume rm dailytracker-go_postgres_data
+docker-compose up -d postgres
+# Wait for postgres to start
+docker run --rm --volumes-from dailytracker-postgres -v $(pwd):/backup alpine sh -c "cd / && tar xzf /backup/postgres-backup-20260411.tar.gz"
+docker-compose restart postgres
+docker-compose up -d
 ```
 
 ---
@@ -142,6 +182,7 @@ docker-compose restart
 ```bash
 # View logs
 docker-compose logs -f app
+docker-compose logs -f postgres
 
 # Check status
 docker-compose ps
@@ -152,7 +193,7 @@ docker-compose restart app
 # Stop everything
 docker-compose down
 
-# Remove everything including database
+# Remove everything including database volume
 docker-compose down -v
 
 # Rebuild after code changes
@@ -160,6 +201,7 @@ docker-compose up -d --build
 
 # Enter container shell
 docker-compose exec app sh
+docker-compose exec postgres psql -U dailytracker -d dailytracker
 
 # Check image size
 docker images | grep dailytracker
@@ -214,25 +256,32 @@ sudo systemctl reload nginx
 # Check what's using the port
 sudo lsof -i :20224
 
-# Change port in docker-compose.prod.yml
+# Change port in docker-compose.yml or docker-compose.prod.yml
 ```
 
 ### Container won't start
 ```bash
 # Check logs
 docker-compose logs app
+docker-compose logs postgres
 
 # Check if Docker is running
 docker ps
 ```
 
-### Database issues
+### Database connection issues
 ```bash
-# Check database file exists
-ls -la ./data/
+# Check if PostgreSQL is running
+docker-compose ps postgres
 
-# Restart container
-docker-compose restart app
+# Check PostgreSQL logs
+docker-compose logs postgres
+
+# Verify environment variables
+docker-compose exec app env | grep DB_
+
+# Test connection manually
+docker-compose exec postgres psql -U dailytracker -d dailytracker
 ```
 
 ### Can't connect from browser
@@ -244,29 +293,45 @@ sudo ufw allow 20224
 docker-compose ps
 ```
 
+### Migration issues
+```bash
+# Check migration logs
+docker-compose logs app | grep -i migration
+
+# Connect to database and check schema
+docker-compose exec postgres psql -U dailytracker -d dailytracker
+\dt  # List tables
+\d users  # Describe users table
+```
+
 ---
 
 ## Files Structure
 
 ```
 dailytracker-go/
-├── api/              # API handlers
-├── public/           # Frontend (index.html)
-├── data/             # Database (created on first run)
-├── docker-compose.yml           # Local config
-├── docker-compose.prod.yml      # Production overrides
-├── Dockerfile                   # Docker build
-├── deploy-vps.sh               # Deployment script
-├── main.go                     # Entry point
-└── go.mod                      # Go dependencies
+├── cmd/dailytracker/    # Application entry point
+├── internal/            # Internal packages
+│   ├── handlers/        # HTTP handlers
+│   ├── middleware/      # Authentication middleware
+│   ├── models/          # Data models
+│   └── repository/      # Database layer
+├── migrations/          # Database migrations
+├── web/                 # Frontend files
+├── docker-compose.yml            # Docker config
+├── docker-compose.prod.yml       # Production overrides
+├── Dockerfile                    # Docker build
+├── deploy-vps.sh                # Deployment script
+└── go.mod                       # Go dependencies
 ```
 
 ---
 
 ## Security Notes
 
-- ✅ Database stored locally (not exposed)
-- ✅ No environment secrets needed
-- ✅ Pure Go SQLite (no C dependencies)
-- ⚠️ No authentication (add if needed for public deployment)
+- ✅ Database stored in Docker volume (not exposed externally)
+- ✅ Session-based authentication implemented
+- ✅ PostgreSQL password required
+- ⚠️ Set strong DB_PASSWORD in production
 - ⚠️ Consider HTTPS with nginx + Let's Encrypt for production
+- ⚠️ Review firewall rules to restrict database access

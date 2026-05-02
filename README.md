@@ -14,33 +14,54 @@ A simple daily productivity tracker to rate your work and personal life (0-5 sca
 - 🗂️ View last 30 entries
 - ✏️ Edit existing entries
 - 🚀 Fast, lightweight, single binary deployment
-- 💾 SQLite database (no server required)
+- 💾 PostgreSQL database
 - 🐳 Docker support
 
 ## 🛠️ Tech Stack
 
 - **Backend:** Go 1.25+ (pure Go, no CGO)
-- **Database:** SQLite (via modernc.org/sqlite - pure Go implementation)
+- **Database:** PostgreSQL
 - **Frontend:** Vanilla JavaScript
 - **Deployment:** Docker Compose
 
 ## 🚀 Quick Start
 
-### Local Development
+### Prerequisites
+
+- Docker and Docker Compose (recommended)
+- OR PostgreSQL 16+ installed locally
+
+### Local Development with Docker
 
 ```bash
 # Clone repository
 git clone git@github.com:bsjhx/dailytracker-go.git
 cd dailytracker-go
 
-# Run directly with Go
-go run main.go
+# Copy environment file
+cp .env.example .env
 
-# Or with Docker
-docker compose up -d
+# Start PostgreSQL and the app
+docker-compose up
 
 # Access app
 open http://localhost:8080
+```
+
+### Local Development without Docker
+
+```bash
+# Make sure PostgreSQL is running
+# Create database: dailytracker
+
+# Set environment variables
+export DB_URL=localhost:5432
+export DB_USER=dailytracker
+export DB_PASSWORD=your_password
+export DB_NAME=dailytracker
+
+# Run the application
+go run ./cmd/dailytracker
 ```
 
 ### VPS Deployment
@@ -118,19 +139,29 @@ dailytracker-go/
 
 ### Database
 
-Database is stored as a single SQLite file:
-- **Local:** `./dailytracker.db`
-- **Docker:** `./data/dailytracker.db` (persisted volume)
+PostgreSQL database with persistent storage:
+- **Docker:** PostgreSQL data persisted in `postgres_data` volume
+- **Port:** 5432 (accessible for direct connections)
+
+### Environment Variables
+
+Required for all environments:
+```bash
+DB_URL=localhost:5432       # PostgreSQL host:port
+DB_USER=dailytracker        # Database user
+DB_PASSWORD=your_password   # Database password
+DB_NAME=dailytracker        # Database name
+PORT=8080                   # App port (optional, default: 8080)
+```
 
 ### Backup
 
 ```bash
-# Backup database
-cp ./data/dailytracker.db backup-$(date +%Y%m%d).db
+# Backup database (Docker)
+docker exec dailytracker-postgres pg_dump -U dailytracker dailytracker > backup-$(date +%Y%m%d).sql
 
-# Restore
-cp backup-20260412.db ./data/dailytracker.db
-docker compose restart
+# Restore (Docker)
+docker exec -i dailytracker-postgres psql -U dailytracker dailytracker < backup-20260412.sql
 ```
 
 ## 🤝 Contributing
@@ -147,6 +178,6 @@ MIT License - feel free to use this project however you'd like!
 
 ## 🙏 Acknowledgments
 
-- Pure Go SQLite driver by [modernc.org/sqlite](https://gitlab.com/cznic/sqlite)
+- PostgreSQL for reliable database
 - Docker for easy deployment
 - Go for being awesome

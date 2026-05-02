@@ -18,11 +18,7 @@ func main() {
 		log.Printf("No .env file found or error loading it: %v", err)
 	}
 
-	env := os.Getenv("ENV")
-	if env == "" {
-		env = "dev"
-	}
-	log.Printf("DailyTracker v%s (env: %s)", version.Version, env)
+	log.Printf("DailyTracker v%s", version.Version)
 
 	port := os.Getenv("PORT")
 	if port == "" {

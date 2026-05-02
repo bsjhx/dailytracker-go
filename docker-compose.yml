@@ -8,34 +8,13 @@ services:
     ports:
       - "8080:8080"
     environment:
-      ENV: ${ENV:-dev}
       PORT: 8080
-      # SQLite (dev)
-      DB_PATH: /app/data/dailytracker.db
-      # Postgres (prod)
       DB_URL: ${DB_URL:-postgres:5432}
       DB_USER: ${DB_USER:-dailytracker}
       DB_PASSWORD: ${DB_PASSWORD:-password}
       DB_NAME: ${DB_NAME:-dailytracker}
-    volumes:
-      - ./data:/app/data
     depends_on:
       - postgres
-    profiles:
-      - prod
-
-  app-dev:
-    build: .
-    container_name: dailytracker-app-dev
-    restart: unless-stopped
-    ports:
-      - "8080:8080"
-    environment:
-      ENV: dev
-      PORT: 8080
-      DB_PATH: /app/data/dailytracker.db
-    volumes:
-      - ./data:/app/data
 
   postgres:
     image: postgres:16-alpine
@@ -49,9 +28,6 @@ services:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
-    profiles:
-      - prod
 
 volumes:
-  data:
   postgres_data:

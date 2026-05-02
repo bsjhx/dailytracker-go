@@ -1,9 +1,7 @@
-# [DT-1][Technical] Migrate to Postgres (local = sqlite, prod = Postres)
+# [DT-1][Technical] Migrate to Postgres
 
-App on start should check if it's running in production or development mode. Must be based on env variable `ENV=prod|dev`), and initialize database connection accordingly:
-- for local mode use SQLite - as it is now
-- for production use Postgres which is hosted on VPS, so url, username and password should be read from env variables (`DB_URL`, `DB_USER`, `DB_PASSWORD`)
-
-Also update migration logic to work with both databases - it must provide separate folder and files for each database, so that we can have different migration files for local and production if needed.
-
-As we dont have any rele1vant data, we do not migrate anything.
+Remove SQLite at all. Use Postgres for both development and production.
+Use envs to configure connection string.
+Update documentation and deployment scripts accordingly.
+Docker setup should also be updated to use Postgres.
+In docker compose for local development, use official Postgres image and set up a volume for data persistence. Refactor docker compose for prod.

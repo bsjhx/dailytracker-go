@@ -5,9 +5,11 @@ Never update this file or any of the files in the `/tasks`.
 ## 📋 To Do
 
 ### Sprint 2: 01.05.2026 - 22.05.2026
-- [ ] [DT-1][Technical] Migrate to Postgres (local = sqlite, prod = Postres)
-- [ ] [DT-2][Technical] Add roles (admin/user)
-- [ ] [DT-3][Technical] Add some SQL library to not write raw SQL everywhere
+- [x] [DT-1][Technical] Migrate to Postgres (prod = Postres)
+- [ ] [DT-3][Technical] Production deployment with Docker image not compose.
+- [ ] [DT-4][Technical] Use GH actions to build and push Docker image to GHCR on release.
+- [ ] [DT-5][Technical] Create "test" environment with separate Postgres instance and use it in GH actions for testing (from develop branch). Simply use second port on VPS.
+- [ ] [DT-2][Technical] Add roles (admin/user). Secure admin routes.
 
 ### Backlog
 - [ ] [Admin] Add admin user panel

@@ -124,11 +124,11 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	var userID int
 	var username string
 	var passwordHash string
-	err = db.QueryRow(repository.ConvertPlaceholders(`
+	err = db.QueryRow(`
 		SELECT id, username, password_hash
 		FROM users
-		WHERE username = ?
-	`), req.Username).Scan(&userID, &username, &passwordHash)
+		WHERE username = $1
+	`, req.Username).Scan(&userID, &username, &passwordHash)
 
 	if err == sql.ErrNoRows {
 		http.Error(w, `{"error":"Invalid username or password"}`, http.StatusUnauthorized)
@@ -259,10 +259,10 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	// Insert user
 	log.Println("Insertign user:", string(passwordHash))
-	result, err := db.Exec(repository.ConvertPlaceholders(`
+	result, err := db.Exec(`
 		INSERT INTO users (username, password_hash)
-		VALUES (?, ?)
-	`), req.Username, string(passwordHash))
+		VALUES ($1, $2)
+	`, req.Username, string(passwordHash))
 
 	if err != nil {
 		if err.Error() == "UNIQUE constraint failed: users.username" {
